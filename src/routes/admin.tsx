@@ -171,6 +171,9 @@ function HalamanAdmin() {
 
       <Tabs defaultValue="siswa">
         <TabsList className="surface-3d h-11 rounded-xl p-1">
+          <TabsTrigger value="absen" className="rounded-lg px-4">
+            <CalendarCheck className="mr-2 size-4" /> Menu Absen
+          </TabsTrigger>
           <TabsTrigger value="siswa" className="rounded-lg px-4">
             <Users className="mr-2 size-4" /> Data Siswa
           </TabsTrigger>
