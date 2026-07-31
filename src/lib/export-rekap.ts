@@ -253,52 +253,5 @@ export function exportBulananPDF(rekapList: RekapSiswa[], tahun: number, bulan: 
     },
   });
 
-  const y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-  doc.setFontSize(7);
-  doc.text("Detail jam absen per siswa tersedia pada halaman berikutnya.", 10, y);
-
-  // Halaman detail jam masuk & pulang per siswa
-  rekapList.forEach((r) => {
-    const rows = r.harian.filter((h) => {
-      const [y2, m2] = h.tanggal.split("-").map(Number);
-      return y2 === tahun && m2 === bulan + 1;
-    });
-    if (rows.length === 0) return;
-    const perTanggal = new Map<string, { masuk?: string; pulang?: string; sm?: string; sp?: string }>();
-    rows.forEach((h) => {
-      const cur = perTanggal.get(h.tanggal) ?? {};
-      if (h.jenis === "masuk") {
-        cur.masuk = h.jam ?? "-";
-        cur.sm = STATUS_LABEL[h.status];
-      } else {
-        cur.pulang = h.jam ?? "-";
-        cur.sp = STATUS_LABEL[h.status];
-      }
-      perTanggal.set(h.tanggal, cur);
-    });
-
-    doc.addPage("a4", "landscape");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(`${r.nomor}. ${r.siswa.nama}`, 10, 14);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(
-      `Kelas ${r.siswa.kelas} · ${r.siswa.jenis_kelamin} · ${NAMA_BULAN[bulan]} ${tahun}`,
-      10,
-      20,
-    );
-
-    autoTable(doc, {
-      startY: 25,
-      head: [["Tanggal", "Status Masuk", "Jam Masuk", "Status Pulang", "Jam Pulang"]],
-      body: [...perTanggal.entries()]
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([tgl, v]) => [formatTanggal(tgl), v.sm ?? "-", v.masuk ?? "-", v.sp ?? "-", v.pulang ?? "-"]),
-      styles: { fontSize: 8.5, cellPadding: 2 },
-      headStyles: { fillColor: [26, 35, 66], textColor: 255 },
-    });
-  });
-
   doc.save(`absensi-bulanan-${NAMA_BULAN[bulan].toLowerCase()}-${tahun}.pdf`);
 }
