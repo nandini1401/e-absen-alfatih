@@ -11,10 +11,12 @@ import {
   BarChart3,
   CalendarRange,
   CalendarCheck,
+  QrCode,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdminGate, TombolLogoutAdmin } from "@/components/AdminGate";
 import { PanelAbsen } from "@/components/PanelAbsen";
+import { DialogQRSiswa } from "@/components/QRSiswa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,7 +87,9 @@ function HalamanAdmin() {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormSiswa | null>(null);
   const [hapus, setHapus] = useState<Siswa | null>(null);
+  const [qr, setQr] = useState<Siswa | null>(null);
   const [periode, setPeriode] = useState<string>("");
+
 
   const siswaQ = useQuery({ queryKey: ["siswa"], queryFn: fetchSiswa });
   const sesiQ = useQuery({ queryKey: ["sesi"], queryFn: fetchSesi });
@@ -218,6 +222,15 @@ function HalamanAdmin() {
                           size="sm"
                           variant="outline"
                           className="press-3d mr-2"
+                          title="Lihat kode QR"
+                          onClick={() => setQr(r.siswa)}
+                        >
+                          <QrCode className="size-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="press-3d mr-2"
                           onClick={() => setForm({ ...r.siswa })}
                         >
                           <Pencil className="size-4" />
@@ -344,6 +357,12 @@ function HalamanAdmin() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <DialogQRSiswa
+        siswa={qr}
+        nomor={rekap.find((r) => r.siswa.id === qr?.id)?.nomor}
+        onClose={() => setQr(null)}
+      />
 
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>
         <DialogContent>
