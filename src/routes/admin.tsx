@@ -358,6 +358,12 @@ function HalamanAdmin() {
         </TabsContent>
       </Tabs>
 
+      <DialogQRSiswa
+        siswa={qr}
+        nomor={rekap.find((r) => r.siswa.id === qr?.id)?.nomor}
+        onClose={() => setQr(null)}
+      />
+
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>
         <DialogContent>
           <DialogHeader>
