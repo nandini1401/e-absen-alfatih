@@ -21,16 +21,16 @@ export function TombolLogoutAdmin() {
   const keluar = useServerFn(logoutAdmin);
   return (
     <Button
-      size="sm"
-      variant="outline"
-      className="press-3d"
+      size="default"
+      variant="secondary"
+      className="press-3d border border-primary-foreground/20 bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-lg"
       onClick={async () => {
         await keluar({});
         qc.invalidateQueries({ queryKey: ["admin-session"] });
-        toast.success("Berhasil keluar");
+        toast.success("Berhasil keluar dari Panel Admin");
       }}
     >
-      <LogOut className="mr-2 size-4" /> Keluar
+      <LogOut className="mr-2 size-4" /> <span className="font-semibold">Keluar Admin</span>
     </Button>
   );
 }
