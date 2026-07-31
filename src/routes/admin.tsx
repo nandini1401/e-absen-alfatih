@@ -74,7 +74,7 @@ function HalamanAdminTerkunci() {
       <AdminGate>
         <HalamanAdmin />
       </AdminGate>
-    </>
+    </AppShell>
   );
 }
 
