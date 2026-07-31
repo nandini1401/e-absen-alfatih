@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarCheck, Undo2, Plus, LogIn, LogOut } from "lucide-react";
+import { CalendarCheck, Undo2, Plus, LogIn, LogOut, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
+import jsQR from "jsqr";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -31,6 +34,11 @@ export function PanelAbsen() {
   const qc = useQueryClient();
   const [tanggal, setTanggal] = useState<Date>(new Date());
   const [jenis, setJenis] = useState<JenisSesi>("masuk");
+  const [qrText, setQrText] = useState<string>("");
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const lastScanRef = useRef<string | null>(null);
 
   const siswaQ = useQuery({ queryKey: ["siswa"], queryFn: fetchSiswa });
   const sesiQ = useQuery({ queryKey: ["sesi"], queryFn: fetchSesi });
@@ -111,12 +119,106 @@ export function PanelAbsen() {
     { label: "Alpa", nilai: hitung("alfa"), kelas: "text-danger" },
   ];
 
+  const siswaById = new Map(siswa.map((s) => [s.id, s]));
+
+  const parseQRText = async (text: string) => {
+    const parts = text.split("|");
+    if (parts.length < 3 || parts[0] !== "SMPNT-ALFATIH") {
+      throw new Error("QR tidak valid");
+    }
+    const siswaId = parts[1];
+    const siswa = siswaById.get(siswaId);
+    if (!siswa) throw new Error("Siswa tidak ditemukan dari QR");
+    return siswa;
+  };
+
+  const scanQR = useMutation({
+    mutationFn: async (text: string) => {
+      if (!text.trim()) throw new Error("QR belum dipindai");
+      const siswa = await parseQRText(text);
+      if (!sesiHariIni) throw new Error("Sesi belum dibuka");
+      const { error } = await supabase.from("absensi").upsert(
+        {
+          sesi_id: sesiHariIni.id,
+          siswa_id: siswa.id,
+          status: "hadir",
+          jam: jamSekarang(),
+        },
+        { onConflict: "sesi_id,siswa_id" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Absen QR tersimpan");
+      setQrText("");
+      qc.invalidateQueries({ queryKey: ["absensi"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  useEffect(() => {
+    if (!cameraEnabled || !videoRef.current) return;
+    setVideoError(null);
+    const canvas = document.createElement("canvas");
+    let frameId: number | null = null;
+    let stream: MediaStream | null = null;
+
+    async function startCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setVideoError("Browser tidak mendukung akses kamera.");
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch (error) {
+        if (error instanceof Error) setVideoError(error.message);
+      }
+    }
+
+    function scanFrame() {
+      const video = videoRef.current;
+      if (!video || video.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        frameId = requestAnimationFrame(scanFrame);
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        frameId = requestAnimationFrame(scanFrame);
+        return;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const result = jsQR(imageData.data, canvas.width, canvas.height);
+      if (result?.data && result.data !== lastScanRef.current) {
+        lastScanRef.current = result.data;
+        setQrText(result.data);
+        if (sesiHariIni) scanQR.mutate(result.data);
+      }
+      frameId = requestAnimationFrame(scanFrame);
+    }
+
+    startCamera().then(() => {
+      frameId = requestAnimationFrame(scanFrame);
+    });
+
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+      const tracks = stream?.getTracks() ?? [];
+      tracks.forEach((track) => track.stop());
+    };
+  }, [cameraEnabled, scanQR, sesiHariIni]);
+
   return (
     <>
       <div className="navy-3d mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-4">
         <div>
           <p className="text-xs opacity-70">Sesi absen</p>
           <p className="font-display text-lg font-bold">{formatTanggal(key)}</p>
+          <p className="text-xs text-muted-foreground">Pilih tanggal dan scan QR code atau pilih siswa lalu status.</p>
         </div>
         <Tabs value={jenis} onValueChange={(v) => setJenis(v as JenisSesi)}>
           <TabsList className="h-10 bg-primary-foreground/10">
@@ -169,6 +271,54 @@ export function PanelAbsen() {
         </div>
 
         <div className="space-y-4">
+          {sesiHariIni && (
+            <div className="surface-3d rounded-2xl p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold">Scan QR Siswa</p>
+                  <p className="text-xs text-muted-foreground">
+                    Scan QR siswa untuk absen hadir otomatis.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    className="press-3d"
+                    onClick={() => {
+                      setCameraEnabled((prev) => !prev);
+                      if (!cameraEnabled) {
+                        lastScanRef.current = null;
+                        setQrText("");
+                      }
+                    }}
+                    variant="outline"
+                  >
+                    <Camera className="mr-2 size-4" />
+                    {cameraEnabled ? "Matikan Kamera" : "Buka Kamera"}
+                  </Button>
+                </div>
+              </div>
+              {cameraEnabled && (
+                <div className="mt-4 space-y-3">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full rounded-xl border bg-black"
+                  />
+                  {videoError && <p className="text-xs text-destructive">{videoError}</p>}
+                </div>
+              )}
+              <div className="mt-4 space-y-2">
+                <Label>Hasil QR</Label>
+                <Input
+                  value={qrText}
+                  readOnly
+                  placeholder="Hasil QR scan akan tampil di sini"
+                />
+              </div>
+            </div>
+          )}
           {!sesiHariIni ? (
             <div className="surface-3d rounded-2xl p-8 text-center">
               <p className="text-sm text-muted-foreground">

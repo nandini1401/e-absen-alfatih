@@ -42,17 +42,20 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   const [password, setPassword] = useState("");
 
   const login = useMutation({
-    mutationFn: async () => masuk({ data: { password } }),
+    mutationFn: async () => masuk({ data: { password: password.trim() } }),
     onSuccess: (res) => {
       if (res.ok) {
         setPassword("");
         qc.invalidateQueries({ queryKey: ["admin-session"] });
         toast.success("Login berhasil");
       } else {
-        toast.error("Password salah");
+        toast.error(res.reason ?? "Password salah");
       }
     },
-    onError: () => toast.error("Gagal login, coba lagi"),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Gagal login, coba lagi";
+      toast.error(message);
+    },
   });
 
   if (sesi.isLoading) {

@@ -12,6 +12,7 @@ import {
   CalendarRange,
   CalendarCheck,
   QrCode,
+  Printer,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdminGate, TombolLogoutAdmin } from "@/components/AdminGate";
@@ -50,6 +51,8 @@ import {
   exportSemuaCSV,
   exportSiswaCSV,
   exportSiswaPDF,
+  exportIdCardPDF,
+  exportAllIdCardsPDF,
 } from "@/lib/export-rekap";
 
 export const Route = createFileRoute("/admin")({
@@ -231,6 +234,15 @@ function HalamanAdmin() {
                           size="sm"
                           variant="outline"
                           className="press-3d mr-2"
+                          title="Cetak ID Card"
+                          onClick={() => exportIdCardPDF(r.siswa, r.nomor)}
+                        >
+                          <Printer className="size-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="press-3d mr-2"
                           onClick={() => setForm({ ...r.siswa })}
                         >
                           <Pencil className="size-4" />
@@ -263,13 +275,21 @@ function HalamanAdmin() {
           <div className="surface-3d rounded-2xl p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold">Rekap Kehadiran per Siswa</h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   className="press-3d"
                   onClick={() => exportSemuaCSV(rekap)}
                 >
                   <FileDown className="mr-2 size-4" /> CSV Semua
+                </Button>
+                <Button
+                  variant="outline"
+                  className="press-3d"
+                  onClick={() => exportAllIdCardsPDF(rekap)}
+                  disabled={rekap.length === 0}
+                >
+                  <Printer className="mr-2 size-4" /> Unduh Semua ID Card
                 </Button>
               </div>
 

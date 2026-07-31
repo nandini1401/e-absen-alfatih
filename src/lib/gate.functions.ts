@@ -10,12 +10,21 @@ export const loginAdmin = createServerFn({ method: "POST" })
   .inputValidator((data: { password: string }) => data)
   .handler(async ({ data }) => {
     const { sesiAdmin, passwordCocok } = await import("./gate.server");
-    if (!data.password || !passwordCocok(data.password)) {
-      return { ok: false as const };
+    const passwordCheck = passwordCocok(data.password);
+    if (passwordCheck !== true) {
+      return { ok: false as const, reason: passwordCheck };
     }
-    const session = await sesiAdmin();
-    await session.update({ admin: true });
-    return { ok: true as const };
+
+    try {
+      const session = await sesiAdmin();
+      await session.update({ admin: true });
+      return { ok: true as const };
+    } catch (error) {
+      if (error instanceof Error) {
+        return { ok: false as const, reason: error.message };
+      }
+      return { ok: false as const, reason: "Gagal membuat sesi admin" };
+    }
   });
 
 export const logoutAdmin = createServerFn({ method: "POST" }).handler(async () => {

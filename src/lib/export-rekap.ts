@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
+import QRCode from "qrcode";
 import {
   formatTanggal,
   JENIS_LABEL,
@@ -11,6 +12,7 @@ import {
   STATUS_RGB,
   type JenisSesi,
   type RekapSiswa,
+  type Siswa,
   type StatusAbsen,
 } from "./absensi";
 
@@ -29,6 +31,67 @@ function unduh(blob: Blob, nama: string) {
 
 function slug(s: string) {
   return s.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function drawIdCard(doc: jsPDF, siswa: Siswa, nomor: number, x: number, y: number, qrUrl: string) {
+  const width = 62;
+  const height = 110;
+  const padding = 4;
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(x, y, width, height, 6, 6, "F");
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(x + padding, y + padding, width - padding * 2, height - padding * 2, 4, 4, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text("SMPNT AL - FATIH", x + width / 2, y + 8, { align: "center" });
+  doc.setFontSize(6);
+  doc.text("KARTU PELAJAR", x + width / 2, y + 12, { align: "center" });
+
+  doc.addImage(qrUrl, "PNG", x + 10, y + 18, 42, 42);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text(siswa.nama, x + width / 2, y + 70, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text(`Kelas ${siswa.kelas}`, x + width / 2, y + 78, { align: "center" });
+  doc.text(`No. Absen ${nomor}`, x + width / 2, y + 84, { align: "center" });
+}
+
+export async function exportAllIdCardsPDF(rekapList: RekapSiswa[]) {
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const cols = 3;
+  const rows = 2;
+  const cardWidth = 62;
+  const cardHeight = 110;
+  const gapX = 6;
+  const gapY = 8;
+  const marginX = 10;
+  const marginY = 10;
+
+  for (let i = 0; i < rekapList.length; i += cols * rows) {
+    if (i > 0) doc.addPage();
+    const pageItems = rekapList.slice(i, i + cols * rows);
+    for (const [index, rekap] of pageItems.entries()) {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      const x = marginX + col * (cardWidth + gapX);
+      const y = marginY + row * (cardHeight + gapY);
+      const qrUrl = await QRCode.toDataURL(isiQR(rekap.siswa), {
+        width: 240,
+        margin: 1,
+        errorCorrectionLevel: "H",
+        color: { dark: "#0b1f3a", light: "#ffffff" },
+      });
+      drawIdCard(doc, rekap.siswa, rekap.nomor, x, y, qrUrl);
+    }
+  }
+
+  doc.save("idcard-semua-siswa.pdf");
 }
 
 export function exportSiswaCSV(rekap: RekapSiswa) {
@@ -59,6 +122,52 @@ export function exportSiswaCSV(rekap: RekapSiswa) {
     new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }),
     `rekap-${slug(rekap.siswa.nama)}.csv`,
   );
+}
+
+function isiQR(siswa: Siswa) {
+  return `SMPNT-ALFATIH|${siswa.id}|${siswa.nama}`;
+}
+
+export async function exportIdCardPDF(siswa: Siswa, nomor: number) {
+  const doc = new jsPDF();
+  const qrUrl = await QRCode.toDataURL(isiQR(siswa), {
+    width: 240,
+    margin: 1,
+    errorCorrectionLevel: "H",
+    color: { dark: "#0b1f3a", light: "#ffffff" },
+  });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("ID CARD SISWA", 14, 18);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(NAMA_SEKOLAH, 14, 26);
+
+  doc.setDrawColor(11, 31, 58);
+  doc.setLineWidth(0.5);
+  doc.rect(10, 10, 190, 130, "S");
+
+  doc.addImage(qrUrl, "PNG", 14, 35, 80, 80);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(siswa.nama, 110, 48);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`No. Absen : ${nomor}`, 110, 58);
+  doc.text(`Kelas     : ${siswa.kelas}`, 110, 66);
+  doc.text(`Jenis Kelamin : ${siswa.jenis_kelamin}`, 110, 74);
+
+  doc.setFontSize(9);
+  doc.text("Gunakan QR ini untuk scan absen siswa.", 110, 90);
+  doc.text("Cetak pada kertas A4 + potong mengikuti tepi.", 110, 98);
+
+  doc.setFontSize(8);
+  doc.text("SMPNT AL - FATIH", 110, 110);
+
+  doc.save(`idcard-${slug(siswa.nama)}-${nomor}.pdf`);
 }
 
 export function exportSiswaPDF(rekap: RekapSiswa) {
