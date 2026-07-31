@@ -222,6 +222,15 @@ function HalamanAdmin() {
                           size="sm"
                           variant="outline"
                           className="press-3d mr-2"
+                          title="Lihat kode QR"
+                          onClick={() => setQr(r.siswa)}
+                        >
+                          <QrCode className="size-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="press-3d mr-2"
                           onClick={() => setForm({ ...r.siswa })}
                         >
                           <Pencil className="size-4" />
