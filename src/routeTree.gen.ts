@@ -10,17 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AbsenRouteImport } from './routes/absen'
 import { Route as AdminRouteImport } from './routes/admin'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AbsenRoute = AbsenRouteImport.update({
-  id: '/absen',
-  path: '/absen',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -31,31 +25,27 @@ const AdminRoute = AdminRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/absen': typeof AbsenRoute
   '/admin': typeof AdminRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/absen': typeof AbsenRoute
   '/admin': typeof AdminRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/absen': typeof AbsenRoute
   '/admin': typeof AdminRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/absen' | '/admin'
+  fullPaths: '/' | '/admin'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/absen' | '/admin'
-  id: '__root__' | '/' | '/absen' | '/admin'
+  to: '/' | '/admin'
+  id: '__root__' | '/' | '/admin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AbsenRoute: typeof AbsenRoute
   AdminRoute: typeof AdminRoute
 }
 
@@ -66,13 +56,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/absen': {
-      id: '/absen'
-      path: '/absen'
-      fullPath: '/absen'
-      preLoaderRoute: typeof AbsenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -87,7 +70,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AbsenRoute: AbsenRoute,
   AdminRoute: AdminRoute,
 }
 export const routeTree = rootRouteImport

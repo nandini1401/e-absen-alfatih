@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarCheck, Undo2, Plus, LogIn, LogOut } from "lucide-react";
-import { AppShell } from "@/components/AppShell";
-import { AdminGate, TombolLogoutAdmin } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,24 +20,6 @@ import {
   type StatusAbsen,
 } from "@/lib/absensi";
 
-export const Route = createFileRoute("/absen")({
-  head: () => ({
-    meta: [
-      { title: "Menu Absen Harian — E-Absensi SMPNT AL-FATIH" },
-      {
-        name: "description",
-        content:
-          "Catat kehadiran siswa SMPNT AL-FATIH per tanggal untuk sesi absen masuk dan absen pulang, lengkap dengan jam absen dan tombol batal.",
-      },
-      { property: "og:title", content: "Menu Absen Harian — E-Absensi SMPNT AL-FATIH" },
-      { property: "og:description", content: "Catat kehadiran siswa per sesi masuk dan pulang." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: HalamanAbsenTerkunci,
-});
-
 const gayaStatus: Record<StatusAbsen, string> = {
   hadir: "bg-success text-white hover:bg-success/90",
   sakit: "bg-warning text-black hover:bg-warning/90",
@@ -48,17 +27,7 @@ const gayaStatus: Record<StatusAbsen, string> = {
   alfa: "bg-danger text-white hover:bg-danger/90",
 };
 
-function HalamanAbsenTerkunci() {
-  return (
-    <AppShell>
-      <AdminGate>
-        <HalamanAbsen />
-      </AdminGate>
-    </AppShell>
-  );
-}
-
-function HalamanAbsen() {
+export function PanelAbsen() {
   const qc = useQueryClient();
   const [tanggal, setTanggal] = useState<Date>(new Date());
   const [jenis, setJenis] = useState<JenisSesi>("masuk");
@@ -149,19 +118,16 @@ function HalamanAbsen() {
           <p className="text-xs opacity-70">Sesi absen</p>
           <p className="font-display text-lg font-bold">{formatTanggal(key)}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Tabs value={jenis} onValueChange={(v) => setJenis(v as JenisSesi)}>
-            <TabsList className="h-10 bg-primary-foreground/10">
-              <TabsTrigger value="masuk" className="px-4 text-xs sm:text-sm">
-                <LogIn className="mr-2 size-4" /> Absen Masuk
-              </TabsTrigger>
-              <TabsTrigger value="pulang" className="px-4 text-xs sm:text-sm">
-                <LogOut className="mr-2 size-4" /> Absen Pulang
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <TombolLogoutAdmin />
-        </div>
+        <Tabs value={jenis} onValueChange={(v) => setJenis(v as JenisSesi)}>
+          <TabsList className="h-10 bg-primary-foreground/10">
+            <TabsTrigger value="masuk" className="px-4 text-xs sm:text-sm">
+              <LogIn className="mr-2 size-4" /> Absen Masuk
+            </TabsTrigger>
+            <TabsTrigger value="pulang" className="px-4 text-xs sm:text-sm">
+              <LogOut className="mr-2 size-4" /> Absen Pulang
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[320px_1fr]">
@@ -218,7 +184,7 @@ function HalamanAbsen() {
             </div>
           ) : siswa.length === 0 ? (
             <div className="surface-3d rounded-2xl p-8 text-center text-sm text-muted-foreground">
-              Belum ada data siswa. Tambahkan lewat halaman Admin.
+              Belum ada data siswa. Tambahkan lewat tab Data Siswa.
             </div>
           ) : (
             <div className="space-y-3">

@@ -11,9 +11,11 @@ import {
   Users,
   BarChart3,
   CalendarRange,
+  CalendarCheck,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdminGate, TombolLogoutAdmin } from "@/components/AdminGate";
+import { PanelAbsen } from "@/components/PanelAbsen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -169,8 +171,11 @@ function HalamanAdmin() {
         ))}
       </div>
 
-      <Tabs defaultValue="siswa">
+      <Tabs defaultValue="absen">
         <TabsList className="surface-3d h-11 rounded-xl p-1">
+          <TabsTrigger value="absen" className="rounded-lg px-4">
+            <CalendarCheck className="mr-2 size-4" /> Menu Absen
+          </TabsTrigger>
           <TabsTrigger value="siswa" className="rounded-lg px-4">
             <Users className="mr-2 size-4" /> Data Siswa
           </TabsTrigger>
@@ -178,6 +183,10 @@ function HalamanAdmin() {
             <BarChart3 className="mr-2 size-4" /> Rekap Absensi
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="absen" className="mt-5">
+          <PanelAbsen />
+        </TabsContent>
 
         <TabsContent value="siswa" className="mt-5">
           <div className="surface-3d rounded-2xl p-5">
