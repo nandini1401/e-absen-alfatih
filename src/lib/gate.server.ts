@@ -10,7 +10,9 @@ function sessionConfig() {
     password,
     name: "admin-gate",
     maxAge: 60 * 60 * 8,
-    cookie: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" },
+    // Preview berjalan di dalam iframe (konteks third-party), jadi cookie
+    // harus SameSite=None + Secure agar ikut terkirim setelah login.
+    cookie: { httpOnly: true, secure: true, sameSite: "none" as const, path: "/" },
   };
 }
 
