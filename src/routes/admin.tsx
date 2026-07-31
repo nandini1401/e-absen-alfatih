@@ -260,10 +260,8 @@ function HalamanAdmin() {
                 >
                   <FileDown className="mr-2 size-4" /> CSV Semua
                 </Button>
-                <Button className="press-3d" onClick={() => exportSemuaPDF(rekap)}>
-                  <FileText className="mr-2 size-4" /> PDF Semua
-                </Button>
               </div>
+
             </div>
 
             <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border p-4">
