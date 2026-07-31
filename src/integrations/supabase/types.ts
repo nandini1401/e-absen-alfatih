@@ -60,18 +60,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          jenis: Database["public"]["Enums"]["jenis_sesi"]
           judul: string
           tanggal: string
         }
         Insert: {
           created_at?: string
           id?: string
+          jenis?: Database["public"]["Enums"]["jenis_sesi"]
           judul?: string
           tanggal: string
         }
         Update: {
           created_at?: string
           id?: string
+          jenis?: Database["public"]["Enums"]["jenis_sesi"]
           judul?: string
           tanggal?: string
         }
@@ -109,6 +112,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      jenis_sesi: "masuk" | "pulang"
       status_absen: "hadir" | "sakit" | "izin" | "alfa"
     }
     CompositeTypes: {
@@ -237,6 +241,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      jenis_sesi: ["masuk", "pulang"],
       status_absen: ["hadir", "sakit", "izin", "alfa"],
     },
   },
