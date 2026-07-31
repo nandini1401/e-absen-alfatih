@@ -87,7 +87,9 @@ function HalamanAdmin() {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormSiswa | null>(null);
   const [hapus, setHapus] = useState<Siswa | null>(null);
+  const [qr, setQr] = useState<Siswa | null>(null);
   const [periode, setPeriode] = useState<string>("");
+
 
   const siswaQ = useQuery({ queryKey: ["siswa"], queryFn: fetchSiswa });
   const sesiQ = useQuery({ queryKey: ["sesi"], queryFn: fetchSesi });
