@@ -1,8 +1,20 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { formatTanggal, NAMA_SEKOLAH, STATUS_LABEL, type RekapSiswa } from "./absensi";
+import autoTable, { type CellHookData } from "jspdf-autotable";
+import {
+  formatTanggal,
+  JENIS_LABEL,
+  matriksBulanan,
+  NAMA_BULAN,
+  NAMA_SEKOLAH,
+  STATUS_KODE,
+  STATUS_LABEL,
+  STATUS_RGB,
+  type JenisSesi,
+  type RekapSiswa,
+  type StatusAbsen,
+} from "./absensi";
 
-function tandaStatus(status: RekapSiswa["harian"][number]["status"]): string {
+function tandaStatus(status: StatusAbsen): string {
   return status === "hadir" ? "." : STATUS_LABEL[status];
 }
 
@@ -32,13 +44,21 @@ export function exportSiswaCSV(rekap: RekapSiswa) {
     ["Total Izin", String(rekap.izin)],
     ["Total Alpa", String(rekap.alfa)],
     [],
-    ["Tanggal", "Keterangan", "Jam"],
-    ...rekap.harian.map((h) => [h.tanggal, tandaStatus(h.status), h.jam ?? "-"]),
+    ["Tanggal", "Sesi", "Keterangan", "Jam"],
+    ...rekap.harian.map((h) => [
+      h.tanggal,
+      JENIS_LABEL[h.jenis],
+      tandaStatus(h.status),
+      h.jam ?? "-",
+    ]),
   ];
   const csv = baris
     .map((r) => r.map((c) => `"${(c ?? "").replace(/"/g, '""')}"`).join(","))
     .join("\n");
-  unduh(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }), `rekap-${slug(rekap.siswa.nama)}.csv`);
+  unduh(
+    new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }),
+    `rekap-${slug(rekap.siswa.nama)}.csv`,
+  );
 }
 
 export function exportSiswaPDF(rekap: RekapSiswa) {
@@ -63,10 +83,11 @@ export function exportSiswaPDF(rekap: RekapSiswa) {
 
   autoTable(doc, {
     startY: 52,
-    head: [["No", "Tanggal", "Keterangan", "Jam"]],
+    head: [["No", "Tanggal", "Sesi", "Keterangan", "Jam"]],
     body: rekap.harian.map((h, i) => [
       String(i + 1),
       formatTanggal(h.tanggal),
+      JENIS_LABEL[h.jenis],
       tandaStatus(h.status),
       h.jam ?? "-",
     ]),
@@ -74,8 +95,14 @@ export function exportSiswaPDF(rekap: RekapSiswa) {
     headStyles: { fillColor: [26, 35, 66], textColor: 255 },
     columnStyles: {
       0: { cellWidth: 12, halign: "center" },
-      2: { cellWidth: 32, halign: "center" },
-      3: { cellWidth: 22, halign: "center" },
+      2: { cellWidth: 30, halign: "center" },
+      3: { cellWidth: 28, halign: "center" },
+      4: { cellWidth: 20, halign: "center" },
+    },
+    didParseCell: (d: CellHookData) => {
+      if (d.section !== "body" || d.column.index !== 3) return;
+      const status = rekap.harian[d.row.index]?.status;
+      if (status) d.cell.styles.textColor = STATUS_RGB[status];
     },
   });
 
@@ -129,4 +156,149 @@ export function exportSemuaPDF(rekapList: RekapSiswa[]) {
     headStyles: { fillColor: [26, 35, 66], textColor: 255 },
   });
   doc.save("rekap-semua-siswa.pdf");
+}
+
+type SelInfo = { status: StatusAbsen; jam: string | null } | null;
+
+/** Rekap bulanan tanggal 1-31, dua baris per siswa (masuk & pulang), berwarna + total. */
+export function exportBulananPDF(rekapList: RekapSiswa[], tahun: number, bulan: number) {
+  const doc = new jsPDF({ orientation: "landscape", format: "a4" });
+  const jenisList: JenisSesi[] = ["masuk", "pulang"];
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text(NAMA_SEKOLAH, 10, 13);
+  doc.setFontSize(10);
+  doc.text(`ABSENSI BULANAN — ${NAMA_BULAN[bulan].toUpperCase()} ${tahun}`, 10, 19);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text(
+    "Keterangan warna: H = Hadir (biru), I = Izin (hijau), S = Sakit (kuning), A = Alpa (merah). Baris M = absen masuk, P = absen pulang.",
+    10,
+    24,
+  );
+
+  const info: SelInfo[][] = [];
+  const body: (string | { content: string; rowSpan?: number; styles?: object })[][] = [];
+
+  rekapList.forEach((r) => {
+    jenisList.forEach((jenis, idx) => {
+      const { sel, total } = matriksBulanan(r, tahun, bulan, jenis);
+      info.push(sel.map((s) => (s ? { status: s.status, jam: s.jam } : null)));
+      const baris: (string | { content: string; rowSpan?: number; styles?: object })[] = [];
+      if (idx === 0) {
+        baris.push({ content: String(r.nomor), rowSpan: 2, styles: { valign: "middle" } });
+        baris.push({ content: r.siswa.nama, rowSpan: 2, styles: { valign: "middle" } });
+      }
+      baris.push(jenis === "masuk" ? "M" : "P");
+      for (let d = 0; d < 31; d++) {
+        const s = sel[d];
+        baris.push(s ? STATUS_KODE[s.status] : "");
+      }
+      baris.push(String(total.hadir), String(total.sakit), String(total.izin), String(total.alfa));
+      body.push(baris);
+    });
+  });
+
+  const kolomTanggal: Record<number, object> = {};
+  for (let i = 3; i < 34; i++) kolomTanggal[i] = { cellWidth: 6.4, halign: "center" };
+
+  autoTable(doc, {
+    startY: 28,
+    head: [
+      [
+        "No",
+        "Nama Siswa",
+        "Sesi",
+        ...Array.from({ length: 31 }, (_, i) => String(i + 1)),
+        "H",
+        "S",
+        "I",
+        "A",
+      ],
+    ],
+    body,
+    theme: "grid",
+    styles: { fontSize: 6.2, cellPadding: 0.9, halign: "center", lineWidth: 0.1 },
+    headStyles: { fillColor: [26, 35, 66], textColor: 255, fontSize: 6.2 },
+    columnStyles: {
+      0: { cellWidth: 8 },
+      1: { cellWidth: 38, halign: "left" },
+      2: { cellWidth: 8 },
+      ...kolomTanggal,
+      34: { cellWidth: 7, fontStyle: "bold" },
+      35: { cellWidth: 7, fontStyle: "bold" },
+      36: { cellWidth: 7, fontStyle: "bold" },
+      37: { cellWidth: 7, fontStyle: "bold" },
+    },
+    didParseCell: (d: CellHookData) => {
+      if (d.section !== "body") return;
+      const col = d.column.index;
+      if (col >= 3 && col <= 33) {
+        const sel = info[d.row.index]?.[col - 3];
+        if (sel) {
+          d.cell.styles.textColor = STATUS_RGB[sel.status];
+          d.cell.styles.fontStyle = "bold";
+        }
+      }
+      if (col >= 34) {
+        const map: Record<number, StatusAbsen> = {
+          34: "hadir",
+          35: "sakit",
+          36: "izin",
+          37: "alfa",
+        };
+        d.cell.styles.textColor = STATUS_RGB[map[col]];
+      }
+    },
+  });
+
+  const y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  doc.setFontSize(7);
+  doc.text("Detail jam absen per siswa tersedia pada halaman berikutnya.", 10, y);
+
+  // Halaman detail jam masuk & pulang per siswa
+  rekapList.forEach((r) => {
+    const rows = r.harian.filter((h) => {
+      const [y2, m2] = h.tanggal.split("-").map(Number);
+      return y2 === tahun && m2 === bulan + 1;
+    });
+    if (rows.length === 0) return;
+    const perTanggal = new Map<string, { masuk?: string; pulang?: string; sm?: string; sp?: string }>();
+    rows.forEach((h) => {
+      const cur = perTanggal.get(h.tanggal) ?? {};
+      if (h.jenis === "masuk") {
+        cur.masuk = h.jam ?? "-";
+        cur.sm = STATUS_LABEL[h.status];
+      } else {
+        cur.pulang = h.jam ?? "-";
+        cur.sp = STATUS_LABEL[h.status];
+      }
+      perTanggal.set(h.tanggal, cur);
+    });
+
+    doc.addPage("a4", "landscape");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(`${r.nomor}. ${r.siswa.nama}`, 10, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(
+      `Kelas ${r.siswa.kelas} · ${r.siswa.jenis_kelamin} · ${NAMA_BULAN[bulan]} ${tahun}`,
+      10,
+      20,
+    );
+
+    autoTable(doc, {
+      startY: 25,
+      head: [["Tanggal", "Status Masuk", "Jam Masuk", "Status Pulang", "Jam Pulang"]],
+      body: [...perTanggal.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([tgl, v]) => [formatTanggal(tgl), v.sm ?? "-", v.masuk ?? "-", v.sp ?? "-", v.pulang ?? "-"]),
+      styles: { fontSize: 8.5, cellPadding: 2 },
+      headStyles: { fillColor: [26, 35, 66], textColor: 255 },
+    });
+  });
+
+  doc.save(`absensi-bulanan-${NAMA_BULAN[bulan].toLowerCase()}-${tahun}.pdf`);
 }

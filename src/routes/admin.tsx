@@ -2,8 +2,18 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, FileDown, FileText, Users, BarChart3 } from "lucide-react";
+import {
+  Pencil,
+  Plus,
+  Trash2,
+  FileDown,
+  FileText,
+  Users,
+  BarChart3,
+  CalendarRange,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AdminGate, TombolLogoutAdmin } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +33,17 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { buatRekap, fetchAbsensi, fetchSesi, fetchSiswa, type Siswa } from "@/lib/absensi";
 import {
+  buatRekap,
+  daftarBulan,
+  fetchAbsensi,
+  fetchSesi,
+  fetchSiswa,
+  NAMA_BULAN,
+  type Siswa,
+} from "@/lib/absensi";
+import {
+  exportBulananPDF,
   exportSemuaCSV,
   exportSemuaPDF,
   exportSiswaCSV,
@@ -46,8 +65,18 @@ export const Route = createFileRoute("/admin")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: HalamanAdmin,
+  component: HalamanAdminTerkunci,
 });
+
+function HalamanAdminTerkunci() {
+  return (
+    <AppShell>
+      <AdminGate>
+        <HalamanAdmin />
+      </AdminGate>
+    </AppShell>
+  );
+}
 
 type FormSiswa = { id?: string; nama: string; kelas: string; jenis_kelamin: string };
 const kosong: FormSiswa = { nama: "", kelas: "VII", jenis_kelamin: "Laki-laki" };
@@ -56,6 +85,7 @@ function HalamanAdmin() {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormSiswa | null>(null);
   const [hapus, setHapus] = useState<Siswa | null>(null);
+  const [periode, setPeriode] = useState<string>("");
 
   const siswaQ = useQuery({ queryKey: ["siswa"], queryFn: fetchSiswa });
   const sesiQ = useQuery({ queryKey: ["sesi"], queryFn: fetchSesi });
@@ -65,6 +95,12 @@ function HalamanAdmin() {
     () => buatRekap(siswaQ.data ?? [], sesiQ.data ?? [], absenQ.data ?? []),
     [siswaQ.data, sesiQ.data, absenQ.data],
   );
+
+  const bulanTersedia = useMemo(() => daftarBulan(sesiQ.data ?? []), [sesiQ.data]);
+  const periodeAktif = periode || (bulanTersedia[0] ? `${bulanTersedia[0].tahun}-${bulanTersedia[0].bulan}` : "");
+
+  const totalL = (siswaQ.data ?? []).filter((s) => s.jenis_kelamin === "Laki-laki").length;
+  const totalP = (siswaQ.data ?? []).filter((s) => s.jenis_kelamin === "Perempuan").length;
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["siswa"] });
@@ -109,12 +145,28 @@ function HalamanAdmin() {
   });
 
   return (
-    <AppShell>
-      <div className="navy-3d mb-6 rounded-2xl px-6 py-6">
-        <h1 className="text-2xl font-bold">Panel Admin</h1>
-        <p className="mt-1 text-sm opacity-80">
-          Kelola data siswa dan pantau rekapitulasi kehadiran seluruh siswa.
-        </p>
+    <>
+      <div className="navy-3d mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl px-6 py-6">
+        <div>
+          <h1 className="text-2xl font-bold">Panel Admin</h1>
+          <p className="mt-1 text-sm opacity-80">
+            Kelola data siswa dan pantau rekapitulasi kehadiran seluruh siswa.
+          </p>
+        </div>
+        <TombolLogoutAdmin />
+      </div>
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        {[
+          { label: "Total Siswa", nilai: rekap.length },
+          { label: "Laki-laki", nilai: totalL },
+          { label: "Perempuan", nilai: totalP },
+        ].map((k) => (
+          <div key={k.label} className="surface-3d rounded-2xl p-4 text-center">
+            <p className="font-display text-3xl font-extrabold">{k.nilai}</p>
+            <p className="text-xs text-muted-foreground">{k.label}</p>
+          </div>
+        ))}
       </div>
 
       <Tabs defaultValue="siswa">
@@ -203,6 +255,38 @@ function HalamanAdmin() {
                   <FileText className="mr-2 size-4" /> PDF Semua
                 </Button>
               </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border p-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Periode Bulan</Label>
+                <Select value={periodeAktif} onValueChange={setPeriode}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Pilih bulan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bulanTersedia.map((b) => (
+                      <SelectItem key={`${b.tahun}-${b.bulan}`} value={`${b.tahun}-${b.bulan}`}>
+                        {NAMA_BULAN[b.bulan]} {b.tahun}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                className="press-3d"
+                disabled={!periodeAktif || rekap.length === 0}
+                onClick={() => {
+                  const [t, b] = periodeAktif.split("-").map(Number);
+                  exportBulananPDF(rekap, t, b);
+                }}
+              >
+                <CalendarRange className="mr-2 size-4" /> PDF Absensi Bulanan (Tgl 1-31)
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Berisi absen masuk & pulang tiap tanggal, berwarna (hadir biru, izin hijau, sakit
+                kuning, alpa merah) dan total di kolom akhir.
+              </p>
             </div>
 
             <div className="mt-4 overflow-x-auto">
@@ -346,6 +430,6 @@ function HalamanAdmin() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </>
   );
 }
