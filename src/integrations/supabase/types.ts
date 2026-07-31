@@ -14,7 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      absensi: {
+        Row: {
+          created_at: string
+          id: string
+          jam: string | null
+          sesi_id: string
+          siswa_id: string
+          status: Database["public"]["Enums"]["status_absen"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          jam?: string | null
+          sesi_id: string
+          siswa_id: string
+          status: Database["public"]["Enums"]["status_absen"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          jam?: string | null
+          sesi_id?: string
+          siswa_id?: string
+          status?: Database["public"]["Enums"]["status_absen"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absensi_sesi_id_fkey"
+            columns: ["sesi_id"]
+            isOneToOne: false
+            referencedRelation: "sesi_absen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absensi_siswa_id_fkey"
+            columns: ["siswa_id"]
+            isOneToOne: false
+            referencedRelation: "siswa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sesi_absen: {
+        Row: {
+          created_at: string
+          id: string
+          judul: string
+          tanggal: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          judul?: string
+          tanggal: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          judul?: string
+          tanggal?: string
+        }
+        Relationships: []
+      }
+      siswa: {
+        Row: {
+          created_at: string
+          id: string
+          jenis_kelamin: string
+          kelas: string
+          nama: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          jenis_kelamin?: string
+          kelas?: string
+          nama: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          jenis_kelamin?: string
+          kelas?: string
+          nama?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +109,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      status_absen: "hadir" | "sakit" | "izin" | "alfa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +236,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      status_absen: ["hadir", "sakit", "izin", "alfa"],
+    },
   },
 } as const
