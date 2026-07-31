@@ -4,7 +4,6 @@ import { NAMA_SEKOLAH } from "@/lib/absensi";
 
 const nav = [
   { to: "/", label: "Portal Orang Tua" },
-  { to: "/absen", label: "Absen" },
   { to: "/admin", label: "Admin" },
 ];
 
