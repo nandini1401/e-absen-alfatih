@@ -1,5 +1,6 @@
 import { useSession } from "@tanstack/react-start/server";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type GateSession = { admin?: boolean };
 
@@ -24,12 +25,57 @@ export async function sesiAdmin() {
   return useSession<GateSession>(sessionConfig());
 }
 
-export function passwordCocok(input: string): true | string {
-  const expected = process.env.ADMIN_PASSWORD;
-  if (!expected) return "ADMIN_PASSWORD belum diatur";
-  const normalizedInput = input.trim();
-  const normalizedExpected = expected.trim();
-  const a = createHash("sha256").update(normalizedInput, "utf8").digest();
-  const b = createHash("sha256").update(normalizedExpected, "utf8").digest();
+function normalizePassword(input: string) {
+  return input.trim();
+}
+
+function hashPassword(password: string) {
+  return createHash("sha256").update(normalizePassword(password), "utf8").digest("hex");
+}
+
+async function getStoredAdminPasswordHash() {
+  const { data, error } = await supabaseAdmin
+    .from("admin_credentials")
+    .select("password_hash")
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.password_hash ?? null;
+}
+
+export async function hasAdminPassword(): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("admin_credentials")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return !!data;
+}
+
+export async function verifyAdminPassword(input: string): Promise<true | string> {
+  const expectedHash = await getStoredAdminPasswordHash();
+  if (!expectedHash) return "Belum ada password admin. Silakan daftarkan password baru.";
+
+  const inputHash = hashPassword(input);
+  const a = Buffer.from(inputHash, "hex");
+  const b = Buffer.from(expectedHash, "hex");
+
+  if (a.length !== b.length) return "Password salah";
   return timingSafeEqual(a, b) ? true : "Password salah";
+}
+
+export async function createAdminPassword(input: string): Promise<true | string> {
+  const existing = await hasAdminPassword();
+  if (existing) return "Admin sudah terdaftar";
+
+  const passwordHash = hashPassword(input);
+  const { error } = await supabaseAdmin
+    .from("admin_credentials")
+    .insert({ password_hash: passwordHash });
+
+  if (error) return error.message;
+  return true;
 }

@@ -58,6 +58,14 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     },
   });
 
+  const isFirstSetup = sesi.data?.hasAdmin === false;
+  const title = isFirstSetup ? "Daftar Password Admin Baru" : "Area Khusus Admin";
+  const description = isFirstSetup
+    ? "Buat password admin pertama untuk mengakses halaman ini. Setelah terdaftar, password hanya bisa digunakan untuk login."
+    : "Masukkan password admin untuk mengakses halaman ini.";
+  const buttonLabel = login.isPending ? "Memproses…" : isFirstSetup ? "Daftar" : "Masuk";
+  const passwordLabel = isFirstSetup ? "Password Baru" : "Password Admin";
+
   if (sesi.isLoading) {
     return (
       <div className="surface-3d rounded-2xl p-10 text-center text-sm text-muted-foreground">
@@ -73,10 +81,8 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
           <span className="mx-auto grid size-12 place-items-center rounded-xl bg-primary-foreground/10">
             <Lock className="size-6" />
           </span>
-          <h1 className="mt-3 text-xl font-bold">Area Khusus Admin</h1>
-          <p className="mt-1 text-xs opacity-80">
-            Masukkan password admin untuk mengakses halaman ini.
-          </p>
+          <h1 className="mt-3 text-xl font-bold">{title}</h1>
+          <p className="mt-1 text-xs opacity-80">{description}</p>
         </div>
         <form
           className="surface-3d space-y-4 rounded-b-2xl p-6"
@@ -86,18 +92,18 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
           }}
         >
           <div className="space-y-2">
-            <Label htmlFor="admin-password">Password Admin</Label>
+            <Label htmlFor="admin-password">{passwordLabel}</Label>
             <Input
               id="admin-password"
               type="password"
-              autoComplete="current-password"
+              autoComplete={isFirstSetup ? "new-password" : "current-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
             />
           </div>
-          <Button type="submit" className="press-3d w-full" disabled={login.isPending}>
-            {login.isPending ? "Memeriksa…" : "Masuk"}
+          <Button type="submit" className="press-3d w-full" disabled={login.isPending || !password.trim()}>
+            {buttonLabel}
           </Button>
         </form>
       </div>
