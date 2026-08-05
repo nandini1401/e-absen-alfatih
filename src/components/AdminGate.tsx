@@ -39,17 +39,19 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
   const sesi = useAdminSession();
   const masuk = useServerFn(loginAdmin);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const login = useMutation({
-    mutationFn: async () => masuk({ data: { password: password.trim() } }),
+    mutationFn: async () => masuk({ data: { email: email.trim(), password: password.trim() } }),
     onSuccess: (res) => {
       if (res.ok) {
+        setEmail("");
         setPassword("");
         qc.invalidateQueries({ queryKey: ["admin-session"] });
         toast.success("Login berhasil");
       } else {
-        toast.error(res.reason ?? "Password salah");
+        toast.error(res.reason ?? "Email atau password salah");
       }
     },
     onError: (error) => {
@@ -59,12 +61,11 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   });
 
   const isFirstSetup = sesi.data?.hasAdmin === false;
-  const title = isFirstSetup ? "Daftar Password Admin Baru" : "Area Khusus Admin";
+  const title = isFirstSetup ? "Daftar Akun Admin Pertama" : "Area Khusus Admin";
   const description = isFirstSetup
-    ? "Buat password admin pertama untuk mengakses halaman ini. Setelah terdaftar, password hanya bisa digunakan untuk login."
-    : "Masukkan password admin untuk mengakses halaman ini.";
+    ? "Daftar email dan password admin pertama. Setelah selesai, hanya login dengan akun yang terdaftar."
+    : "Masukkan email dan password admin untuk mengakses halaman ini.";
   const buttonLabel = login.isPending ? "Memproses…" : isFirstSetup ? "Daftar" : "Masuk";
-  const passwordLabel = isFirstSetup ? "Password Baru" : "Password Admin";
 
   if (sesi.isLoading) {
     return (
@@ -92,7 +93,18 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
           }}
         >
           <div className="space-y-2">
-            <Label htmlFor="admin-password">{passwordLabel}</Label>
+            <Label htmlFor="admin-email">Email Admin</Label>
+            <Input
+              id="admin-email"
+              type="email"
+              autoComplete={isFirstSetup ? "email" : "username"}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@domain.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-password">Password Admin</Label>
             <Input
               id="admin-password"
               type="password"
@@ -102,7 +114,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
               placeholder="••••••••"
             />
           </div>
-          <Button type="submit" className="press-3d w-full" disabled={login.isPending || !password.trim()}>
+          <Button type="submit" className="press-3d w-full" disabled={login.isPending || !email.trim() || !password.trim()}>
             {buttonLabel}
           </Button>
         </form>

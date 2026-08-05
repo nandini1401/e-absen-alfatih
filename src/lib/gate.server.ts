@@ -33,18 +33,18 @@ function hashPassword(password: string) {
   return createHash("sha256").update(normalizePassword(password), "utf8").digest("hex");
 }
 
-async function getStoredAdminPasswordHash() {
+async function getStoredAdminAccount() {
   const { data, error } = await supabaseAdmin
     .from("admin_credentials")
-    .select("password_hash")
+    .select("id, email, password_hash")
     .limit(1)
     .maybeSingle();
 
   if (error) throw error;
-  return data?.password_hash ?? null;
+  return data ?? null;
 }
 
-export async function hasAdminPassword(): Promise<boolean> {
+export async function hasAdminAccount(): Promise<boolean> {
   const { data, error } = await supabaseAdmin
     .from("admin_credentials")
     .select("id")
@@ -55,26 +55,30 @@ export async function hasAdminPassword(): Promise<boolean> {
   return !!data;
 }
 
-export async function verifyAdminPassword(input: string): Promise<true | string> {
-  const expectedHash = await getStoredAdminPasswordHash();
-  if (!expectedHash) return "Belum ada password admin. Silakan daftarkan password baru.";
+export async function verifyAdminCredentials(email: string, password: string): Promise<true | string> {
+  const account = await getStoredAdminAccount();
+  if (!account) return "Belum ada akun admin. Silakan daftarkan akun baru.";
+  if (account.email.trim().toLowerCase() !== normalizePassword(email).toLowerCase()) {
+    return "Email atau password salah";
+  }
 
-  const inputHash = hashPassword(input);
+  const inputHash = hashPassword(password);
+  const expectedHash = account.password_hash;
   const a = Buffer.from(inputHash, "hex");
   const b = Buffer.from(expectedHash, "hex");
 
-  if (a.length !== b.length) return "Password salah";
-  return timingSafeEqual(a, b) ? true : "Password salah";
+  if (a.length !== b.length) return "Email atau password salah";
+  return timingSafeEqual(a, b) ? true : "Email atau password salah";
 }
 
-export async function createAdminPassword(input: string): Promise<true | string> {
-  const existing = await hasAdminPassword();
+export async function createAdminAccount(email: string, password: string): Promise<true | string> {
+  const existing = await hasAdminAccount();
   if (existing) return "Admin sudah terdaftar";
 
-  const passwordHash = hashPassword(input);
+  const passwordHash = hashPassword(password);
   const { error } = await supabaseAdmin
     .from("admin_credentials")
-    .insert({ password_hash: passwordHash });
+    .insert({ email: normalizePassword(email).toLowerCase(), password_hash: passwordHash });
 
   if (error) return error.message;
   return true;

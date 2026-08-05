@@ -1,30 +1,30 @@
 import { createServerFn } from "@tanstack/react-start";
 
 export const statusAdmin = createServerFn({ method: "GET" }).handler(async () => {
-  const { sesiAdmin, hasAdminPassword } = await import("./gate.server");
+  const { sesiAdmin, hasAdminAccount } = await import("./gate.server");
   const session = await sesiAdmin();
-  const hasAdmin = await hasAdminPassword();
+  const hasAdmin = await hasAdminAccount();
   return { admin: session.data.admin === true, hasAdmin };
 });
 
 export const loginAdmin = createServerFn({ method: "POST" })
-  .inputValidator((data: { password: string }) => data)
+  .inputValidator((data: { email: string; password: string }) => data)
   .handler(async ({ data }) => {
     const {
       sesiAdmin,
-      hasAdminPassword,
-      createAdminPassword,
-      verifyAdminPassword,
+      hasAdminAccount,
+      createAdminAccount,
+      verifyAdminCredentials,
     } = await import("./gate.server");
 
-    const hasAdmin = await hasAdminPassword();
+    const hasAdmin = await hasAdminAccount();
     if (!hasAdmin) {
-      const createResult = await createAdminPassword(data.password);
+      const createResult = await createAdminAccount(data.email, data.password);
       if (createResult !== true) {
         return { ok: false as const, reason: createResult };
       }
     } else {
-      const passwordCheck = await verifyAdminPassword(data.password);
+      const passwordCheck = await verifyAdminCredentials(data.email, data.password);
       if (passwordCheck !== true) {
         return { ok: false as const, reason: passwordCheck };
       }

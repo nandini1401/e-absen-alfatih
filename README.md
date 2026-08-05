@@ -22,3 +22,14 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Environment Variables
+
+For deployment, Vercel must have the following environment variables configured:
+
+- `SUPABASE_URL` - your Supabase project URL
+- `SUPABASE_PUBLISHABLE_KEY` - your Supabase anon publishable key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-only secret)
+- `SESSION_SECRET` - random secret used for admin session cookies
+
+Do not expose `SUPABASE_SERVICE_ROLE_KEY` to clients. Set these in Vercel under `Settings` → `Environment Variables`, then redeploy.
